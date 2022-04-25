@@ -23,7 +23,7 @@ if __name__ == '__main__':
     # with gf
     sos_eos_tokens = ['<_PAD_>', '<sos_u>', '<eos_u>', '<sos_q>', '<eos_q>', '<sos_s>', '<eos_s>', '<p_key>', '<f_key>',
                       '<sos_context>', '<eos_context>', '<table>', '<number>', '<text>', '<boolean>', '<others>',
-                      '<time>', '<column>', '<sos_rc>', '<eos_rc>', '<sos_tw>', '<eos_tw>', '<sos_gf>', '<eos_gf>']
+                      '<time>', '<column>', '<sos_rc>', '<eos_rc>', '<sos_tw>', '<eos_tw>', '<sos_gf>', '<eos_gf>', '<val_match>']
 
     # initialize tokenizer
     print ('Saving Tokenizer...')

@@ -140,6 +140,7 @@ def write_interaction(database_schemas, schemas, interaction_list, split, output
     one_sample_dict['query'] = final_sql
     utterance['dialogue_session'].append(one_sample_dict)
     utterance['schema'] = schemas[database_id]
+    utterance['database_id'] = database_id
     # print(utterance)
     # total += len(utterance['dialogue_session'])
     all_samples.append(utterance)
@@ -698,7 +699,7 @@ def preprocess(dataset, remove_from=False):
   elif dataset == 'sparc':
     sparc_dir = 'data/sparc/'
     database_schema_filename = 'data/sparc/tables.json'
-    output_dir = 'data/sparc_data_uncased_with_relavant_column2_with_final'
+    output_dir = 'data/sparc_data_uncased_with_rc_tw_with_final'
     if remove_from:
       output_dir = 'data/sparc_data_removefrom'
     # train_database, dev_database = read_db_split(sparc_dir)

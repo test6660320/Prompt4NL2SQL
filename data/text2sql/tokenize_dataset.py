@@ -1,4 +1,8 @@
 import json
+import sqlite3
+from nltk.corpus import stopwords
+
+STOPWORDS = stopwords.words("english")
 
 tw_dict = {"0": ["SELECT 改变了AGG", "select change", "select change agg"],
            "1": ["SELECT 删除了列", "select change", "select delete column"],
@@ -17,6 +21,63 @@ tw_dict = {"0": ["SELECT 改变了AGG", "select change", "select change agg"],
            "14": ["groupby删除了列", "group by change", "group by delete column"],
            "15": ["改变了union", "union change", "union change"],
            "16": ["Join 增加了条件", "join change", "join add condition"]}
+
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+def schema_package_value(schema, db_id, raw_nl_toks):
+
+
+    db_file = os.path.join(r'data/sparc/database', db_id, db_id + '.sqlite')
+    if not os.path.exists(db_file):
+        raise ValueError('[ERROR]: database file %s not found ...' % (db_file))
+    conn = sqlite3.connect(db_file)
+    conn.text_factory = lambda b: b.decode(errors='ignore')
+    conn.execute('pragma foreign_keys=ON')
+
+    schema_p = ''
+    for table in schema:
+        schema_p += ' <table> ' + table
+        columns = schema[table]['columns']
+        types = schema[table]['types']
+        primary_keys = schema[table]['primary_keys']
+        forign_keys = schema[table]['foreign_keys']
+        forign_keys_dict = {}
+        for key in forign_keys:
+            forign_keys_dict[key[0]] = key[1] + ' . ' + key[-1]
+        for colunm, type in zip(columns, types):
+            # add primary_keys and forign_keys
+            # if colunm in primary_keys:
+            #     schema_p += ' <p_key>'
+            # if colunm in forign_keys_dict:
+            #     schema_p += ' <f_key> ' + forign_keys_dict[colunm]
+
+            # YUANJINJIE
+            flag = False
+            if colunm == '*' or 'id' in colunm:  # ignore * and special token 'id'
+                continue
+            try:
+                cursor = conn.execute("SELECT DISTINCT \"%s\" FROM \"%s\";" % (colunm, table))
+                cell_values = cursor.fetchall()
+                cell_values = [str(each[0]) for each in cell_values]
+                cell_values = [[str(float(each))] if is_number(each) else each.lower().split() for each in cell_values]
+            except Exception as e:
+                print(e)
+            for j, word in enumerate(raw_nl_toks):
+                word = str(float(word)) if is_number(word) else word
+                for c in cell_values:
+                    if word in c and word not in STOPWORDS:
+                        flag = True
+                        break
+            schema_p += ' <' + type + '> ' + colunm if not flag else ' <' + type + '> ' + '<val_match>' + colunm
+
+    conn.close()
+    schema_p = '<sos_s>' + schema_p + ' <eos_s>'
+    return schema_p
 
 def schema_package(schema):
     schema_p = ''
@@ -64,7 +125,7 @@ def turn_change_package(turn_change_index):
     text = '<sos_tw> ' + text + ' <eos_tw>'
     return text
 
-def tokenize_text(tokenizer, text, mode):
+def tokenize_text(tokenizer, text, mode, args4value=None):
     if mode == 'user':
         text = '<sos_u> ' + text + ' <eos_u>'
     elif mode == 'query':
@@ -76,13 +137,15 @@ def tokenize_text(tokenizer, text, mode):
         text = turn_change_package(text)
     elif mode == 'schema':
         text = schema_package(text)
+    elif mode == 'schema_value':
+        text = schema_package_value(text, db_id=args4value['db_id'], raw_nl_toks=args4value['raw_nl_toks'])
     else:
         raise Exception('Wrong Mode!!!')
     text = ' '.join(text.split())
     text_id_list = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
     return text, text_id_list
 
-def process_one_dict(tokenizer, in_dict):
+def process_one_dict(tokenizer, in_dict, db_content=False):
     res_dict = in_dict.copy()
     res_dict["dialogue_session"] = []
     for item in in_dict["dialogue_session"]:
@@ -105,11 +168,17 @@ def process_one_dict(tokenizer, in_dict):
             text, text_id_list = tokenize_text(tokenizer, item[key], mode)
             one_res_dict[key] = text
             one_res_dict[id_key] = text_id_list
+        if db_content:
+            text, text_id_list = tokenize_text(tokenizer, res_dict["schema"], 'schema_value', {'db_id': in_dict['database_id'], 'raw_nl_toks': item['user'].split()})
+            one_res_dict["schema_package"] = text
+            one_res_dict["schema_id_list"] = text_id_list
         res_dict["dialogue_session"].append(one_res_dict)
-    schema = res_dict["schema"]
-    text, text_id_list = tokenize_text(tokenizer, schema, 'schema')
-    res_dict["schema_package"] = text
-    res_dict["schema_id_list"] = text_id_list
+
+    if not db_content:
+        schema = res_dict["schema"]
+        text, text_id_list = tokenize_text(tokenizer, schema, 'schema')
+        res_dict["schema_package"] = text
+        res_dict["schema_id_list"] = text_id_list
     return res_dict
 
 
@@ -128,7 +197,7 @@ def process_file(path_prefix, file_name, tokenizer, output_path_prefix):
     res_list = []
     for idx in range(data_num):
         p.update(idx)
-        one_res_dict = process_one_dict(tokenizer, data[idx])
+        one_res_dict = process_one_dict(tokenizer, data[idx], db_content=True)
         res_list.append(one_res_dict)
     p.finish()
     print('Finish processing {}'.format(file_name))
@@ -149,7 +218,7 @@ def process_source_prefix(path_prefix, tokenizer, output_path_prefix):
 
 if __name__ == '__main__':
     save_path = r'./'
-    tokenizer_path = save_path + r'/tokenizer_with_rc_with_tw'
+    tokenizer_path = save_path + r'tokenizer_with_rc_tw_gf'
     print('Loading tokenizer...')
     from transformers import T5Tokenizer
 

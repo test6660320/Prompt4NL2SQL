@@ -56,16 +56,17 @@ if __name__ == '__main__':
     cuda_available = torch.cuda.is_available()
     multi_gpu_training = False
     if cuda_available:
+        device = torch.device('cuda')
         if torch.cuda.device_count() > 1:
             multi_gpu_training = True
             print('Using Multi-GPU training, number of GPU is {}'.format(torch.cuda.device_count()))
         else:
             print('Using single GPU training.')
     else:
-        pass
+        device = torch.device('cpu')
 
     args = parse_config()
-    device = torch.device('cuda')
+
 
     from transformers import T5Tokenizer
 

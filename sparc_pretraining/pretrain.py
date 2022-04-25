@@ -49,7 +49,7 @@ def parse_config():
     parser.add_argument("--gradient_accumulation_steps", type=int, default=2, help="gradient accumulation step.")
     parser.add_argument("--save_steps", type=int, default=5000, help="Save checkpoint every X updates steps.")
     parser.add_argument("--save_path", type=str, help="directory to save the model parameters.")
-    parser.add_argument("--save_ckpt_name", type=str, help="the name under which to save the pre-trained model. small or base or large")
+    parser.add_argument("--save_ckpt_name", type=str, help="the name under which to save the base_with_final_rc_tw model. small or base or large")
     return parser.parse_args()
 
 import argparse
